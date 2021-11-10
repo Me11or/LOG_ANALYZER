@@ -16,3 +16,7 @@
 
 Для запуска тестов можно использовать команду:
 - python3 -m unittest -v test_log_analyzer.py
+
+
+    booksДомашнее задание/проектная работа разработано(-на) для курса "Название курса"
+<h3 dir="auto"><g-emoji class="g-emoji" alias="books" fallback-src="https://github.githubassets.com/images/icons/emoji/unicode/1f4da.png">📚</g-emoji><strong>Домашнее задание разработано для курса "<a href="https://otus.ru/lessons/python-professional/" rel="nofollow">Python Developer. Professional</a>"</strong></h3>
