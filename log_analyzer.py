@@ -10,6 +10,7 @@ from pathlib import Path
 import re
 from statistics import median
 import string
+from typing import Dict, Optional, Union
 
 
 CONFIG = {
@@ -19,6 +20,8 @@ CONFIG = {
     'REPORT_TEMPL_PATH': './report_templ.html',
     'CRIT_ERR_PERCENT': 30,
 }
+
+LastFileData = collections.namedtuple('last_file_data', ['file_name', 'file_date'])
 
 
 def main(config_file_path: str) -> None:
@@ -101,17 +104,20 @@ def main(config_file_path: str) -> None:
         raise
 
 
-def read_config(config_file_path: str, def_config: dict) -> dict:
+def read_config(
+    config_file_path: str, def_config: Optional[Dict[str, Union[int, str]]] = None
+) -> Dict[str, Union[int, str]]:
     """
     Читаем конфиг файл и соединяем в приоритете с дефолтными настройками
     :param config_file_path: путь до файла настройки
     :type config_file_path: str
     :param def_config: дефолтные настройки
-    :type def_config: dict
+    :type def_config: Dict[str, Union[int, str]
     :return: возвращаем словарь с параметрами
-    :rtype: dict
+    :rtype: Dict[str, Union[int, str]
     """
 
+    def_config = def_config or {}
     config_file = configparser.ConfigParser()
     config_file.read(config_file_path)
     res_dict = {}
@@ -148,7 +154,7 @@ def read_config(config_file_path: str, def_config: dict) -> dict:
     return res_dict
 
 
-def search_last_file(log_dir: str) -> tuple:
+def search_last_file(log_dir: str) -> LastFileData:
     """
     Ищет в указанной директории последний файл лога соответствующий шаблону имени
     :param log_dir: путь до директории с файлами логов
@@ -159,7 +165,6 @@ def search_last_file(log_dir: str) -> tuple:
 
     last_date = None
     last_file_name = None
-    last_file_data = collections.namedtuple('last_file_data', ['file_name', 'file_date'])
     re_search_file = re.compile(r'^nginx-access-ui.log-\d{8}.gz$|^nginx-access-ui.log-\d{8}$')
     re_get_date = re.compile(r'\d{4}\d{2}\d{2}')
     try:
@@ -174,19 +179,19 @@ def search_last_file(log_dir: str) -> tuple:
                 if last_date < date:
                     last_date = date
                     last_file_name = file
-        return last_file_data(last_file_name, last_date)
+        return LastFileData(last_file_name, last_date)
     except Exception as error:
         logging.info('Ошибка поиска файла: {}'.format(error))
-        return None
+        return LastFileData(None, None)
 
 
-def parse_file(file_path: Path) -> dict:
+def parse_file(file_path: Path) -> Dict[str, Union[Dict[str, list], int, float]]:
     """
     Читаем файл, собирая информацию по времени выполнения в разрезе каждого URL
     :param file_path: путь до файла который будем анализировать
     :type file_path: Path
     :return: возвращаем словарь с параметрами
-    :rtype: dict
+    :rtype: Dict[str, Union[Dict[str, list], int, float]]
     """
     all_count = 0
     all_sum = 0
@@ -220,11 +225,11 @@ def parse_file(file_path: Path) -> dict:
     return parsed_data
 
 
-def enrich_log_data(parsed_data: dict) -> list:
+def enrich_log_data(parsed_data: Dict[str, Union[Dict[str, list], int, float]]) -> list:
     """
     Высчитываем и добавляем к словарю данные необходимые для отчёта
     :param parsed_data: словарь с полученными из файла данными
-    :type parsed_data: dict
+    :type parsed_data: Dict[str, Union[Dict[str, list], int, float]]
     :return: возвращаем лист готовый к дампу в json
     :rtype: list
     """
@@ -280,6 +285,9 @@ def create_report(json_data: str, report_templ_path: str, target_report_path: Pa
         readed_templ = string.Template(report_template.read())
 
     rendered_report = readed_templ.safe_substitute(table_json=json_data)
+
+    if not target_report_path.parent.exists():
+        target_report_path.parent.mkdir(parents=True, exist_ok=True)
 
     with open(target_report_path, 'w') as result_report:
         result_report.write(rendered_report)
